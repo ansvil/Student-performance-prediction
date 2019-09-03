@@ -1,31 +1,15 @@
-## script5.txt
-## Деревья решений
-## Случайный лес: функция randomForest из пакета randomForest
-##
-## (2/3 набора данных используется для обучения и 1/3 – для тестирования)
 ## install.packages("randomForest")
 ##
 setwd("C:\\Users\\Анастасия\\Documents\\r_projects\\diploma\\data") ###
 library (randomForest)
 library (caret)
-##
 T3 <- read.table("stud_2019_2.csv", sep=";", header=TRUE, row.name=NULL)
-## прочитан файл 'data.frame': 18768 obs. of 11 variables:
-##
-## Оставляем только тех студентов, которые отчислены или закончили
+##setup
 T3 <- T3[which(T3$IS_UCH == 0 | T3$IS_UCH == 1) ,]
-##
 T3$STUD_MARK[is.na(T3$STUD_MARK) == TRUE] <- 4
-##
-## Продублируем IS_UCH и перекодируем его (иначе алгоритм не работает)
-##
 T3$IS_UCH1 <- factor(T3$IS_UCH)
-##T3$IS_UCH1[T3$IS_UCH1 == 1] <- "Закончил"
-##T3$IS_UCH1[T3$IS_UCH1 == 0] <- "Бросил "
-##
-## Делаем его фактором
-##
 T3$IS_UCH1 <-factor(T3$IS_UCH1)
+##main function
 data_stuff <- function(x,y)
 {
   T4 <- T3[which(T3$SHORTNAME == x),] 
@@ -47,6 +31,7 @@ data_stuff <- function(x,y)
   ans<-c(ForestTrain,ForestTest,size)	
   return (ans)
 }
+#some info about data
 names<-c("АВТФ","ФЛА","МТФ","ФМА","ФПМИ","РЭФ","ФТФ","ФЭН", "ФБ","ФГО","ЮФ")
 names_iter<-c(1:length(names))
 keys<-list(
@@ -64,7 +49,7 @@ keys<-list(
 )
 sink("out_randomForest_notFactor.csv")
 cat("Факультет","Специальность","Размер выборки","Точность на обучающей","Точность на тестовой","\n",sep=";")
-
+##main output
 for(i in names_iter)
 {
   name<-names[i]
@@ -83,9 +68,7 @@ for(i in names_iter)
   }
 }
 sink()
-
-
-##цикл для важности регрессоров
+##determining the importance of regressors
 my_varimp <- function(x,y)
 {
   T4 <- T3[which(T3$SHORTNAME == x),] 
@@ -99,12 +82,9 @@ my_varimp <- function(x,y)
   dataTrain <- T4[trainIdx,]
   dataTest <- T4[-trainIdx,]
   TrainForest <- randomForest(IS_UCH1 ~ ., data = dataTrain, nodesize=25, ntree = 300)
-  ##if(dim(TrainForest$cptable)[1]>1)
-  ##{
-    xx<-varImp(TrainForest)[1]
-    
-    row_name<-rownames(xx)
-    pred_names<-c("EGE","HOSTEL","IS_CELEV","IS_INVAL","STUD_MARK","SC_LVL")
+  xx<-varImp(TrainForest)[1]
+  row_name<-rownames(xx)
+  pred_names<-c("EGE","HOSTEL","IS_CELEV","IS_INVAL","STUD_MARK","SC_LVL")
     if(isTRUE(all.equal(row_name,pred_names)))
     {
       ans<-unlist(xx)
@@ -125,14 +105,9 @@ my_varimp <- function(x,y)
       }
       ans<-tmp
     }
-  ##}
-  ##else
-  ##{
-  ##  ans<-rep("null_tree",6)
-  ##}
   return (ans)
 }
-
+##output begins
 sink("varimp_RandomForest_notFactor.csv")
 cat("Факультет","Специальность","EGE","HOSTEL","IS_CELEV","IS_INVAL","STUD_MARK","SC_LVL","\n",sep=";")
 
@@ -160,49 +135,3 @@ for(i in names_iter)
   }
 }
 sink()
-
-## выбираем нужные наблюдения
-##
-##T4 <- T3 ## для всего университета
-## Набор данных для ФПМИ
-T4 <- T3[which(T3$SHORTNAME == "ФПМИ"),] ## для отдельных факультетов
-##T4 <- T4[which(T4$KEYS_PLUS == "01.03.02"),] ## для отд. специальностей ПМ
-##T4 <- T4[which(T4$KEYS_PLUS == "02.03.03"),] ## для отд. специальностей ПМИ
-
-##T4 <- T4 [c("SC_LVL", "IS_UCH")] ## для отдельных факторов
-
-T4 <- T4[, c(6:11, 13)]
-##T4 <- subset(T4, select = IS_INVAL : IS_UCH, IS_UCH1)
-## Оставлены только нужные столбцы
-##
-trainIdx <- sample (nrow (T4), 2*nrow(T4)/3, replace = FALSE )
-##
-## случайно выбрали 2/3 наблюдений
-##
-dataTrain <- T4[trainIdx,]
-## Обучающая выборка
-##
-dataTest <- T4[-trainIdx,]
-## Тестирующая выборка
-##
-TrainForest <- randomForest(IS_UCH1 ~ ., data = dataTrain, nodesize=25, ntree = 300,importance=TRUE)
-##TrainForest <- randomForest(IS_UCH1 ~ ., data = dataTrain)
-##	чего-то посчитали
-##	IS_UCH1 ~ . влияние всех факторов на IS_UCH
-##	в dataTrain и факторы и класс IS_UCH
-importance(TrainForest)
-library(caret)
-
-xx<-varImp(TrainForest)
-predictForest <- predict(TrainForest, dataTrain)
-## 	точность на обучающей выборке
-ForestTrain <- mean(predict(TrainForest) == dataTrain$IS_UCH1)
-##
-##	оценили на тестовой выборке
-##
-predictionsTest <- predict(TrainForest, dataTest)
-tt <- table(dataTest$IS_UCH1, predictionsTest)
-## 	точность на тестовой выборке 
-ForestTest <- (tt[1]+tt[4])/(tt[1]+tt[2]+tt[3]+tt[4])
-paste("Точность=", round(100*ForestTest, 2), "%", sep="")
-##	
